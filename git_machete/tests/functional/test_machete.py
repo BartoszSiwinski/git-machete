@@ -37,12 +37,13 @@ class FakeCommandLineOptions(CommandLineOptions):
 
 
 class MockGitAPIState:
-    def __init__(self) -> None:
-        self.pulls: List[Dict[str, Any]] = [
-            {'head': {'ref': 'bugfix/remove'}, 'user': {'login': 'github_user'}, 'base': {'ref': 'develop'},
-             'number': '15', 'html_url': 'www.github.com'}]
+    def __init__(self, pulls: List[Dict[str, Any]]) -> None:
+        self.pulls: List[Dict[str, Any]] = pulls
         self.user: Dict[str, str] = {'login': 'github_user', 'type': 'User', 'company': 'VirtusLab'}
         self.issues: List[Dict[str, Any]] = []
+
+    def new_request(self) -> "MockGitAPIRequest":
+        return MockGitAPIRequest(self)
 
     def get_issue(self, issue_no: str) -> Optional[Dict[str, Any]]:
         for index, issue in enumerate(self.issues):
@@ -56,19 +57,21 @@ class MockGitAPIState:
                 return self.pulls.pop(index)
         return None
 
-    def set_initial_values(self) -> None:
-        self.pulls = [
-            {'head': {'ref': 'bugfix/remove'}, 'user': {'login': 'github_user'}, 'base': {'ref': 'develop'},
-             'number': '15', 'html_url': 'www.github.com'}]
-        self.user = {'login': 'github_user', 'type': 'User', 'company': 'VirtusLab'}
-        self.issues = []
+
+class ResponseWrapper:
+    def __init__(self, data):
+        self.data = data
+
+    def read(self):
+        return json.dumps(self.data).encode()
 
 
 class MockGitAPIRequest:
 
-    git_api_state: MockGitAPIState = MockGitAPIState()
+    def __init__(self, git_api_state: MockGitAPIState):
+        self.git_api_state: MockGitAPIState = git_api_state
 
-    def __init__(self, url: str, headers: Dict[str, str] = None, data: Union[str, bytes, None] = None, method: str = ''):
+    def __call__(self, url: str, headers: Dict[str, str] = None, data: Union[str, bytes, None] = None, method: str = ''):
         self.parsed_url: ParseResult = urlparse(url, allow_fragments=True)
         self.parsed_query = parse_qs(self.parsed_url.query)
         self.status_code: Optional[int] = None
@@ -76,6 +79,7 @@ class MockGitAPIRequest:
         self.return_data: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
         self.headers: Dict[str, str] = headers
         self.handle_method(method)
+        return ResponseWrapper(self.return_data)
 
     def handle_method(self, method: str) -> None:
         if method == "GET":
@@ -85,16 +89,13 @@ class MockGitAPIRequest:
         elif method == "POST":
             self.handle_post()
 
-    def read(self) -> Union[str, bytes]:
-        return json.dumps(self.return_data).encode()
-
     def handle_get(self) -> None:
         if self.parsed_url.path.endswith('pulls'):
             full_head_name: Optional[List[str]] = self.parsed_query.get('head')
             if full_head_name:
                 head: str = full_head_name[0]
                 head_name: str = head[head.rfind(':') + 1:]
-                for pr in MockGitAPIRequest.git_api_state.pulls:
+                for pr in self.git_api_state.pulls:
                     if pr['head']['ref'] == head_name:
                         self.return_data = [pr]
                         self.status_code = 200
@@ -104,11 +105,11 @@ class MockGitAPIRequest:
                 return
             else:
                 self.status_code = 200
-                self.return_data = MockGitAPIRequest.git_api_state.pulls
+                self.return_data = self.git_api_state.pulls
                 return
         elif self.parsed_url.path.endswith('user'):
             self.status_code = 200
-            self.return_data = MockGitAPIRequest.git_api_state.user
+            self.return_data = self.git_api_state.user
             return
 
     def handle_patch(self) -> None:
@@ -128,32 +129,32 @@ class MockGitAPIRequest:
     def update_pull(self, new: bool = False) -> None:
         pull: Dict[str, Any]
         if new:
-            pull = {'number': self.get_next_free_number(MockGitAPIRequest.git_api_state.pulls),
+            pull = {'number': self.get_next_free_number(self.git_api_state.pulls),
                     'user': {'login': 'github_user'},
                     'html_url': 'www.github.com'}
         else:
             pull_no: str = self.find_number(self.parsed_url.path)
-            pull = MockGitAPIRequest.git_api_state.get_pull(pull_no)
+            pull = self.git_api_state.get_pull(pull_no)
         for key in json.loads(self.json_data).keys():
             if key in ('base', 'head'):
                 pull[key] = {'ref': ""}
                 pull[key]['ref'] = json.loads(self.json_data)[key]
             else:
                 pull[key] = json.loads(self.json_data)[key]
-        MockGitAPIRequest.git_api_state.pulls.append(pull)
+        self.git_api_state.pulls.append(pull)
         self.status_code = 201
         self.return_data = pull
 
     def update_issue(self, new: bool = False) -> None:
         issue: Dict[str, Any]
         if new:
-            issue = {'number': self.get_next_free_number(MockGitAPIRequest.git_api_state.issues)}
+            issue = {'number': self.get_next_free_number(self.git_api_state.issues)}
         else:
             issue_no = self.find_number(self.parsed_url.path)
-            issue = MockGitAPIRequest.git_api_state.get_issue(issue_no)
+            issue = self.git_api_state.get_issue(issue_no)
         for key in json.loads(self.json_data).keys():
             issue[key] = json.loads(self.json_data)[key]
-        MockGitAPIRequest.git_api_state.issues.append(issue)
+        self.git_api_state.issues.append(issue)
         self.status_code = 201
         self.return_data = issue
         return
@@ -1541,10 +1542,12 @@ class MacheteTester(unittest.TestCase):
                 "specified by the option '-f' from the current branch."
         )
 
+    git_api_state_for_test_retarget_pr = MockGitAPIState(
+        [{'head': {'ref': 'feature'}, 'user': {'login': 'github_user'}, 'base': {'ref': 'root'}, 'number': '15', 'html_url': 'www.github.com'}])
+
+    @mock.patch('urllib.request.Request', git_api_state_for_test_retarget_pr.new_request())
     @mock.patch('urllib.request.urlopen', MockContextManager)
-    @mock.patch('urllib.request.Request', MockGitAPIRequest)
     def test_retarget_pr(self) -> None:
-        MockGitAPIRequest.git_api_state.set_initial_values()
         branchs_first_commit_msg = "First commit on branch."
         branchs_second_commit_msg = "Second commit on branch."
         (
@@ -1560,7 +1563,6 @@ class MacheteTester(unittest.TestCase):
                 .check_out('feature')
                 .add_remote('new_origin', 'https://github.com/user/repo.git')
         )
-        MockGitAPIRequest.git_api_state.pulls = [{'head': {'ref': 'feature'}, 'user': {'login': 'github_user'}, 'base': {'ref': 'root'}, 'number': '15', 'html_url': 'www.github.com'}]
         self.launch_command("discover", "-y")
         self.assert_command(['github', 'retarget-pr'], 'The base branch of PR #15 has been switched to `branch-1`\n', strip_indentation=False)
         self.assert_command(['github', 'retarget-pr'], 'The base branch of PR #15 is already `branch-1`\n', strip_indentation=False)
