@@ -655,6 +655,9 @@ def launch(orig_args: List[str]) -> None:
             machete_client.read_definition_file()
             git.expect_no_operation_in_progress()
             current_branch = git.get_current_branch()
+            if "fork_point" in parsed_cli:
+                git.check_that_forkpoint_is_ancestor_commit_of_branch(
+                    forkpoint_sha=cli_opts.opt_fork_point, branch=current_branch)
             git.rebase_onto_ancestor_commit(
                 current_branch,
                 cli_opts.opt_fork_point or machete_client.fork_point(
@@ -678,11 +681,14 @@ def launch(orig_args: List[str]) -> None:
             machete_client.read_definition_file()
             git.expect_no_operation_in_progress()
             branches = parsed_cli_as_dict.get('branches', [git.get_current_branch()])
-            machete_client.slide_out(list(branches))
+            machete_client.slide_out(list(branches))  #TODO: figure out how to integrate the new check with slide out
         elif cmd == "squash":
             machete_client.read_definition_file()
             git.expect_no_operation_in_progress()
             current_branch = git.get_current_branch()
+            if "fork_point" in parsed_cli:
+                git.check_that_forkpoint_is_ancestor_commit_of_branch(
+                    forkpoint_sha=cli_opts.opt_fork_point, branch=current_branch)
             machete_client.squash(
                 current_branch,
                 cli_opts.opt_fork_point or machete_client.fork_point(
@@ -706,6 +712,9 @@ def launch(orig_args: List[str]) -> None:
         elif cmd == "update":
             machete_client.read_definition_file()
             git.expect_no_operation_in_progress()
+            if "fork_point" in parsed_cli:
+                git.check_that_forkpoint_is_ancestor_commit_of_branch(
+                    forkpoint_sha=cli_opts.opt_fork_point, branch=git.get_current_branch())
             machete_client.update()
         elif cmd == "version":
             version()
