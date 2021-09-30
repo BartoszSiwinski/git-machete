@@ -719,3 +719,19 @@ class GitContext:
                 if to_branch not in result:
                     result[to_branch] = int(match.group(1))
         return result
+
+    def check_that_forkpoint_is_ancestor_commit_of_branch(
+            self, forkpoint_sha: str, branch: str) -> None:
+        # TODO: Consider changing this to not check of equal, just check of
+        #  merge base like method is_ancestor_or_equal doing
+        if self.get_full_sha(branch) == forkpoint_sha:
+            raise MacheteException(
+                f"Forkpoint {forkpoint} is the HEAD of the {branch} branch.")
+
+        if not self.is_ancestor_or_equal(
+                earlier_revision=forkpoint_sha,
+                earlier_prefix='',
+                later_revision=branch):
+            raise MacheteException(
+                f"Forkpoint {forkpoint} is not ancestor commit "
+                f"of the {branch} branch.")
