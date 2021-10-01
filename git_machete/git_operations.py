@@ -520,7 +520,7 @@ class GitContext:
 
         # This if statement is not changing the outcome of the later return, but
         # it enhances the efficiency of the script. If both hashes are the same,
-        # there is no point running git merge-base
+        # there is no point running git merge-base.
         if earlier_sha == later_sha:
             return True
 
@@ -724,7 +724,7 @@ class GitContext:
                     result[to_branch] = int(match.group(1))
         return result
 
-    def check_that_forkpoint_is_ancestor_or_head_of_branch(
+    def check_that_forkpoint_is_ancestor_or_equal_to_head_of_branch(
             self, forkpoint_sha: str, branch: str) -> None:
         if not self.is_ancestor_or_equal(
                 earlier_revision=forkpoint_sha,

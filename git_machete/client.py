@@ -474,6 +474,21 @@ class MacheteClient:
             if not new_upstream:
                 raise MacheteException(f"No upstream branch defined for `{branch}`, cannot slide out")
 
+        if self.__cli_opts.opt_down_fork_point:
+            last_branch_to_slide_out = branches_to_slide_out[-1]
+            children_of_the_last_branch_to_slide_out = self.__down_branches.get(
+                last_branch_to_slide_out)
+
+            if len(children_of_the_last_branch_to_slide_out) > 1:
+                raise MacheteException(
+                    "Last branch to slide out can't have more than one child branch "
+                    "if option --down-fork-point is passed.")
+
+            if len(children_of_the_last_branch_to_slide_out) == 1:
+                self.__git.check_that_forkpoint_is_ancestor_or_equal_to_head_of_branch(
+                    forkpoint_sha=self.__cli_opts.opt_down_fork_point,
+                    branch=children_of_the_last_branch_to_slide_out[0])
+
         # Verify that all "interior" slide-out branches have a single downstream
         # pointing to the next slide-out
         for bu, bd in zip(branches_to_slide_out[:-1], branches_to_slide_out[1:]):
