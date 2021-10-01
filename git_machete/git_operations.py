@@ -731,5 +731,5 @@ class GitContext:
                 earlier_prefix='',
                 later_revision=branch):
             raise MacheteException(
-                f"Forkpoint {forkpoint} is not ancestor of or HEAD "
+                f"Forkpoint {forkpoint_sha} is not ancestor of or HEAD "
                 f"of the {branch} branch.")
