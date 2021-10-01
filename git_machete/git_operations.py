@@ -518,8 +518,12 @@ class GitContext:
         earlier_sha = self.get_full_sha(earlier_revision, earlier_prefix)
         later_sha = self.get_full_sha(later_revision, later_prefix)
 
+        # This if statement is not changing the outcome of the later return, but
+        # it enhances the efficiency of the script. If both hashes are the same,
+        # there is no point running git merge-base
         if earlier_sha == later_sha:
             return True
+
         return self.__get_merge_base(earlier_sha, later_sha) == earlier_sha
 
     # Determine if later_revision, or any ancestors of later_revision that are NOT ancestors of earlier_revision,
@@ -720,18 +724,12 @@ class GitContext:
                     result[to_branch] = int(match.group(1))
         return result
 
-    def check_that_forkpoint_is_ancestor_commit_of_branch(
+    def check_that_forkpoint_is_ancestor_or_head_of_branch(
             self, forkpoint_sha: str, branch: str) -> None:
-        # TODO: Consider changing this to not check of equal, just check of
-        #  merge base like method is_ancestor_or_equal doing
-        if self.get_full_sha(branch) == forkpoint_sha:
-            raise MacheteException(
-                f"Forkpoint {forkpoint} is the HEAD of the {branch} branch.")
-
         if not self.is_ancestor_or_equal(
                 earlier_revision=forkpoint_sha,
                 earlier_prefix='',
                 later_revision=branch):
             raise MacheteException(
-                f"Forkpoint {forkpoint} is not ancestor commit "
+                f"Forkpoint {forkpoint} is not ancestor of or HEAD "
                 f"of the {branch} branch.")

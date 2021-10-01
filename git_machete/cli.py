@@ -656,7 +656,7 @@ def launch(orig_args: List[str]) -> None:
             git.expect_no_operation_in_progress()
             current_branch = git.get_current_branch()
             if "fork_point" in parsed_cli:
-                git.check_that_forkpoint_is_ancestor_commit_of_branch(
+                git.check_that_forkpoint_is_ancestor_or_head_of_branch(
                     forkpoint_sha=cli_opts.opt_fork_point, branch=current_branch)
             git.rebase_onto_ancestor_commit(
                 current_branch,
@@ -687,7 +687,7 @@ def launch(orig_args: List[str]) -> None:
             git.expect_no_operation_in_progress()
             current_branch = git.get_current_branch()
             if "fork_point" in parsed_cli:
-                git.check_that_forkpoint_is_ancestor_commit_of_branch(
+                git.check_that_forkpoint_is_ancestor_or_head_of_branch(
                     forkpoint_sha=cli_opts.opt_fork_point, branch=current_branch)
             machete_client.squash(
                 current_branch,
@@ -713,7 +713,7 @@ def launch(orig_args: List[str]) -> None:
             machete_client.read_definition_file()
             git.expect_no_operation_in_progress()
             if "fork_point" in parsed_cli:
-                git.check_that_forkpoint_is_ancestor_commit_of_branch(
+                git.check_that_forkpoint_is_ancestor_or_head_of_branch(
                     forkpoint_sha=cli_opts.opt_fork_point, branch=git.get_current_branch())
             machete_client.update()
         elif cmd == "version":
