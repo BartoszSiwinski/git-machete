@@ -8,6 +8,13 @@ executors:
       # Needed to avoid warning: https://superuser.com/questions/575844/warning-terminal-is-not-fully-functional
       TERM: ansi
 
+mandatory_jobs: &mandatory_jobs
+  - initial_checks
+  - tests_py36_git_1_8_0
+  - tests_py37_git_2_7_6
+  - tests_py38_git_2_25_0_pep8
+  - tests_py39_git_2_30_1_coverage_docs
+
 jobs:
   initial_checks:
     executor: ubuntu_executor
@@ -145,32 +152,21 @@ jobs:
       #    is triggered automatically via GitHub webhook on https://readthedocs.org/projects/git-machete/builds/,
       # 3) every time a https://github.com/r-ryantm bot runs on NixOS/nixpkgs repository,
       #    Nix git-machete package is updated with the fresh version/package hash according to the data from PyPI.
+
 workflows:
   version: 2
   build:
     jobs:
-      - initial_checks
-      - tests_py36_git_1_8_0
-      - tests_py37_git_2_7_6
-      - tests_py38_git_2_25_0_pep8
-      - tests_py39_git_2_30_1_coverage_docs
+      - *mandatory_jobs
       - dry_run_deploy_from_develop:
           filters:
             branches:
               only: "develop"
           requires:
-            - initial_checks
-            - tests_py36_git_1_8_0
-            - tests_py37_git_2_7_6
-            - tests_py38_git_2_25_0_pep8
-            - tests_py39_git_2_30_1_coverage_docs
+            - *mandatory_jobs
       - deploy_from_master:
           filters:
             branches:
               only: "master"
           requires:
-            - initial_checks
-            - tests_py36_git_1_8_0
-            - tests_py37_git_2_7_6
-            - tests_py38_git_2_25_0_pep8
-            - tests_py39_git_2_30_1_coverage_docs
+            - *mandatory_jobs
