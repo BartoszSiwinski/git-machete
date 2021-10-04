@@ -157,7 +157,11 @@ workflows:
   version: 2
   build:
     jobs:
-      *mandatory_jobs
+      - initial_checks
+      - tests_py36_git_1_8_0
+      - tests_py37_git_2_7_6
+      - tests_py38_git_2_25_0_pep8
+      - tests_py39_git_2_30_1_coverage_docs
       - dry_run_deploy_from_develop:
           filters:
             branches:
